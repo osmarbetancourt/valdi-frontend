@@ -18,7 +18,7 @@ class AppColors {
   static const Color onPrimary = Colors.white;
 
   // greys
-  static const Color background = Color(0xFFF6F7F9); // soft neutral background
+  static const Color background = Color(0xFFFFFFFF); // true white background (matches desktop)
   static const Color surface = Colors.white; // card background
   static const Color divider = Color(0xFFE6E9EE);
   static const Color textPrimary = Color(0xFF111827); // near-black for primary text

@@ -9,7 +9,7 @@ Why this palette?
 
 Main tokens (in `app/lib/ui/theme.dart`)
 - primary: #006D77 — primary accent (buttons, highlights)
-- background: #F6F7F9 — app background
+- background: #FFFFFF — true white app background (matches desktop)
 - surface: #FFFFFF — cards / panels
 - divider: #E6E9EE — separators
 - textPrimary: #111827 — primary text

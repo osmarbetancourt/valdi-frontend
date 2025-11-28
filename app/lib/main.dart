@@ -6,7 +6,9 @@ import 'src/features/auth/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final auth = AuthService();
+  // Create a shared ApiClient that persists cookies and pass it into AuthService
+  final api = await ApiClient.createWithCookiePersistence();
+  final auth = AuthService(api: api);
   await auth.init();
 
   runApp(ValdiApp(auth: auth));
@@ -54,13 +56,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _api = ApiClient();
+  // Use the same ApiClient instance that AuthService holds (includes cookie jar)
   String _status = 'idle';
 
   Future<void> _ping() async {
     setState(() => _status = 'loading');
     try {
-      final code = await _api.ping();
+      final code = await widget.auth.api.ping();
       setState(() => _status = 'HTTP $code');
     } on Exception catch (e) {
       setState(() => _status = 'error: $e');
