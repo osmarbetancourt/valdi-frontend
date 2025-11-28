@@ -1,0 +1,10 @@
+.dart_tool/
+.packages
+build/
+ios/Pods/
+android/.gradle/
+android/app/build/
+**/generated_plugin_registrant.dart
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock

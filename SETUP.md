@@ -1,222 +1,102 @@
-# Valdi Android App Setup Guide
+# Flutter App — Developer Setup
 
-## Overview
+This document explains how to set up the development environment to work on the Mercedes Analytics Flutter mobile client (Android & iOS).
 
-This guide covers setting up the Valdi framework for developing an Android app that integrates with the Mercedes analytics backend API.
+Note: Use macOS if you need to build and publish iOS binaries. Linux/Windows can build and run Android apps but cannot produce App Store signed packages.
 
-## Prerequisites
+Prerequisites
+- 8+ GB RAM recommended (more for emulators / simulators)
+- Git
+- A supported JDK (OpenJDK 11 or 17) — required by Android toolchain
+- Flutter SDK (stable channel recommended)
+- Android SDK and command-line tools
+- Xcode (macOS) for iOS development
 
-### System Requirements
+1) Install Flutter SDK
+- Official guide: https://flutter.dev/docs/get-started/install
+- Choose your platform and follow the steps to install Flutter and add it to your PATH.
 
-- macOS (recommended) or Linux
-- Android Studio (latest version)
-- Xcode (macOS only, for iOS development if needed)
+Example (Linux, fish shell):
+```fish
+# download (example for Linux x64):
+mkdir -p $HOME/sdk
+cd $HOME/sdk
+wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_*.tar.xz
+tar xf flutter_linux_*.tar.xz
+# add to PATH (permanent, fish):
+set -Ux PATH $HOME/sdk/flutter/bin $PATH
+flutter --version
+```
 
-### Valdi CLI Installation
+2) Android toolchain (all platforms)
+- Install Android SDK command-line tools and recommended packages
+- Recommended packages: `platform-tools`, an SDK platform (e.g. android-34), `build-tools` (latest), `ndk` (for native if needed)
 
+Using Android Studio (easiest):
+- Install Android Studio and use its SDK Manager to install required SDKs and create an Android Virtual Device (AVD).
+
+CLI install (Linux example):
 ```bash
-npm install -g @snap/valdi
+# assume $ANDROID_HOME is set to ~/Android/Sdk
+mkdir -p ~/Android/Sdk/cmdline-tools
+cd ~/Android/Sdk/cmdline-tools
+# download command line tools zip for linux
+wget https://dl.google.com/android/repository/commandlinetools-linux-*.zip -O cmdline-tools.zip
+unzip cmdline-tools.zip
+mv cmdline-tools latest
+# add to PATH (fish):
+set -Ux ANDROID_HOME $HOME/Android/Sdk
+set -Ux PATH $ANDROID_HOME/cmdline-tools/latest/bin $ANDROID_HOME/platform-tools $PATH
+# accept licenses and install packages
+sdkmanager --sdk_root=$ANDROID_HOME --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+sdkmanager --sdk_root=$ANDROID_HOME --licenses
 ```
 
-### Development Environment Setup
+3) iOS toolchain (macOS only)
+- Install Xcode from the App Store
+- Install Xcode command-line tools: `xcode-select --install`
+- Install CocoaPods: `sudo gem install cocoapods` (or use brew / Ruby manager)
 
+4) Flutter doctor — validation
 ```bash
-valdi dev_setup
+flutter doctor -v
+# Resolve warnings or missing dependencies (Android SDK path, Xcode licenses, missing tools)
 ```
 
-This command installs:
-
-- Homebrew (macOS)
-- Bazelisk (build system)
-- Java JDK 17
-- Android SDK command-line tools
-- Git LFS
-- Watchman
-- iOS debugging tools (macOS)
-
-### Verify Setup
-
+5) Create or configure a device/emulator
+- Android: create an AVD in Android Studio or use `flutter emulators` to list and start an emulator:
 ```bash
-valdi doctor
+flutter emulators --create --name pixel_android_34  # or create via Android Studio
+flutter emulators --launch pixel_android_34
+flutter run
 ```
-
-## Android-Specific Setup
-
-### Android SDK Configuration
-
-The `valdi dev_setup` command configures:
-
-- `ANDROID_HOME`: Points to Android SDK location
-- `ANDROID_NDK_HOME`: Points to Android NDK
-- `PATH`: Includes platform-tools for ADB
-
-### Environment Variables (macOS)
-
+- iOS: open the iOS simulator (macOS only):
 ```bash
-echo "export ANDROID_HOME=$HOME/Library/Android/sdk" >> ~/.zshrc
-echo "export ANDROID_NDK_HOME=$HOME/Library/Android/Sdk/ndk/25.2.9519653" >> ~/.zshrc
-echo "export PATH=\$PATH:$HOME/Library/Android/sdk/platform-tools" >> ~/.zshrc
-source ~/.zshrc
+open -a Simulator
+flutter run -d ios
 ```
 
-### Java JDK Setup
+6) Connect the app to the existing backend
+- The backend base URL must be configurable via environment at runtime or via a configuration file.
+- Example approaches:
+  - Define a compile-time environment variable with flutter_dotenv, or use runtime configuration fetched at first launch.
+  - For local development connect mobile emulator to a local backend via:
+    - Android emulator: `10.0.2.2` points to host machine (for the default Android emulator)
+    - iOS simulator: `localhost` or `127.0.0.1` works for the host machine
+  - Use ngrok or a reverse proxy to expose your local backend to devices.
 
-Valdi requires Java 17. The setup installs OpenJDK 17 and configures:
+7) Local secrets for development
+- Use `.env` or secure local files excluded from git to store API base URLs and other non-sensitive development toggles.
+- Do NOT commit real production secrets to the repository. Use CI secrets for production signing and credentials.
 
-- `JAVA_HOME`: Points to JDK location
-- `PATH`: Includes Java tools
+8) Useful debugging tools & tips
+- Enable Flutter DevTools (hot reload/hot restart)
+- Use `flutter logs` and `adb logcat` for Android logs
+- For iOS, use `Console` app or `flutter logs` to capture device logs
 
-## Project Initialization
+9) Recommended extras
+- Install `FVM` (Flutter Version Manager) for consistent team Flutter versions
+- Use `git` pre-commit hooks to run `dart format` and `flutter analyze`
 
-### Create New Valdi Project
-
-```bash
-mkdir valdi-mercedes-app
-cd valdi-mercedes-app
-valdi bootstrap
-```
-
-### Project Structure
-
-```bash
-valdi-mercedes-app/
-├── MODULE.bazel          # Bazel workspace configuration
-├── WORKSPACE.bazel       # Bazel workspace (generated)
-├── apps/
-│   └── mercedes_app/     # Main app module
-│       ├── BUILD.bazel
-│       ├── module.yaml
-│       ├── src/
-│       │   └── valdi/
-│       │       └── mercedes_app/
-│       │           ├── src/
-│       │           │   └── App.tsx
-│       │           ├── res/        # Images/assets
-│       │           ├── strings/    # Localization
-│       │           └── tsconfig.json
-├── valdi/                # Valdi framework (external)
-└── third-party/          # Dependencies
-```
-
-## Android Build Configuration
-
-### Module Configuration (module.yaml)
-
-```yaml
-name: mercedes_app
-version: 1.0.0
-dependencies:
-  - valdi_core
-  - valdi_http
-  - valdi_persistence
-```
-
-### BUILD.bazel Configuration
-
-```python
-load("@valdi//bzl/valdi:valdi_android_application.bzl", "valdi_android_application")
-
-valdi_android_application(
-    name = "mercedes_app_android",
-    package = "com.mercedes.analytics",
-    title = "Mercedes Analytics",
-    modules = [
-        "//apps/mercedes_app/src/valdi/mercedes_app",
-    ],
-    native_deps = [
-        "@valdi//valdi",
-    ],
-)
-```
-
-## First Build and Install
-
-### Build for Android
-
-```bash
-valdi install android
-```
-
-Select the target: `//apps/mercedes_app:mercedes_app_android`
-
-### Connect Device/Emulator
-
-- Start Android emulator via Android Studio
-- Or connect physical Android device with USB debugging enabled
-
-### Verify Installation
-
-The app should install and launch automatically after build completion.
-
-## Development Workflow
-
-### Hot Reloading
-
-```bash
-valdi hotreload --module mercedes_app
-```
-
-This enables real-time updates as you modify TypeScript code.
-
-### VS Code Setup (Recommended)
-
-1. Install VS Code
-2. Add to PATH: `code` command
-3. Install Valdi VS Code extension (if available)
-
-## Troubleshooting
-
-### Common Issues
-
-#### Build Failures
-
-```bash
-# Clean and rebuild
-bazel clean
-valdi install android
-```
-
-#### Android SDK Issues
-
-```bash
-# Check Android SDK
-echo $ANDROID_HOME
-ls $ANDROID_HOME
-
-# Accept SDK licenses
-$ANDROID_HOME/tools/bin/sdkmanager --licenses
-```
-
-#### Java Version Issues
-
-```bash
-# Check Java version
-java -version
-echo $JAVA_HOME
-
-# Switch Java version (macOS)
-export JAVA_HOME=`/usr/libexec/java_home -v 17`
-```
-
-#### Device Connection Issues
-
-```bash
-# List connected devices
-adb devices
-
-# Restart ADB
-adb kill-server
-adb start-server
-```
-
-### Getting Help
-
-- Run `valdi doctor` for diagnostics
-- Check [Valdi Troubleshooting Guide](https://github.com/Snapchat/Valdi/blob/main/docs/TROUBLESHOOTING.md)
-- Join [Discord community](https://discord.gg/uJyNEeYX2U)
-
-## Next Steps
-
-- [Development Guide](./DEVELOPMENT.md)
-- [API Integration](./API_INTEGRATION.md)
-- [Android Specific Features](./ANDROID_SPECIFIC.md)
+Next step
+- After this setup, open the new app scaffold at `/app` and run `flutter pub get` and `flutter run` there. See DEVELOPMENT.md for architecture and code guidelines and API_INTEGRATION.md for connecting to the Mercedes analytics API.

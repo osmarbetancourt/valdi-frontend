@@ -1,150 +1,122 @@
 # Valdi Android App Development Agent Prompt
+```instructions
+# Flutter Mobile App Development Agent Prompt
 
 ## Project Overview
 
-You are tasked with developing a native Android application using the Valdi framework that integrates with an existing Mercedes analytics backend API. The app will serve as a marketplace-ready mobile client for business analytics, replacing or complementing the current Next.js web frontend.
+You are tasked with developing a cross-platform Flutter mobile application that integrates with the existing Mercedes analytics backend API. The app will be a single codebase (Dart + Flutter) that supports both Android and iOS and provides a production-ready client for business analytics.
 
 ## Current State
 
-- **Repository**: `valdi-frontend` (empty except for documentation files)
-- **Documentation Created**:
-  - `SETUP.md` - Valdi installation and Android development environment setup
-  - `DEVELOPMENT.md` - Valdi component development and architecture
-  - `API_INTEGRATION.md` - Mercedes backend API integration with JWT auth and pagination
-  - `ANDROID_SPECIFIC.md` - Android platform features (permissions, sensors, notifications, etc.)
-  - `DEPLOYMENT.md` - Google Play Store deployment and CI/CD pipeline
-- **Backend API**: Rust Axum server with PostgreSQL, JWT cookie auth, cursor pagination, business isolation
-- **Framework**: Valdi (TypeScript TSX compiling to native Android views)
+- **Repository**: `valdi-frontend` — now repurposed as a Flutter mobile client starter repository (documentation-heavy; no active Valdi runtime code remains)
+- **Documentation now present**:
+  - `README.md` — top-level project summary and roadmap
+  - `SETUP.md` — local Flutter dev environment, Android/iOS toolchain, emulators
+  - `DEVELOPMENT.md` — architecture, state management, and patterns for the Flutter app
+  - `API_INTEGRATION.md` — API integration guidelines and examples for Dart (Dio & cookie handling)
+  - `MOBILE_SPECIFIC.md` — permissions, camera, biometrics, background work, plugin recommendations
+  - `DEPLOYMENT.md` — release builds, signing, CI and store deployment guidance
+
+- **Backend API**: Rust Axum server w/ PostgreSQL (JWT cookie auth, cursor pagination, business separation). The mobile client will interact with the same endpoints.
 
 ## Goals
 
-1. **Initialize Valdi Project**: Set up complete Android app structure
-2. **Implement Core Features**:
-   - User authentication (login/logout)
-   - Dashboard with analytics overview
-   - Conversations list with pagination
-   - Payments data display
-   - Metabase embedded dashboards
-3. **Android Native Integration**: Camera, notifications, biometric auth, file system
-4. **Production Ready**: Signed APK/AAB, Play Store deployment, crash reporting
-5. **API Integration**: Full CRUD operations with error handling and caching
+1. Create a robust, cross-platform Flutter mobile app that integrates securely with the Mercedes analytics backend
+2. Implement core features (authentication, dashboard, paginated conversations and payments, embedded analytics)
+3. Provide native platform capabilities (camera, push notifications, biometrics, offline sync)
+4. Deliver production-grade CI/CD, signing, tests, and monitoring
+5. Maintain a clean, testable codebase with clear architecture and developer docs
 
 ## Technical Specifications
 
-### Valdi Framework
-- **Language**: TypeScript with TSX syntax
-- **Architecture**: Component-based, declarative UI
-- **Compilation**: Direct to native Android views (no web bridges)
-- **Key Features**: HTTP client, persistent storage, navigation, styling
+### Flutter & Dart
+- **Language / Framework**: Dart (null-safety) + Flutter stable
+- **Architecture**: Layered, testable architecture (presentation → application/state → domain → data)
+- **State management**: Riverpod recommended; Bloc (optional) for teams that prefer event/state
 
-### Mercedes Backend API
+### Mercedes Backend API (example)
 ```
-Base URL: https://api.mercedes-analytics.com
-Auth: JWT tokens via cookies
-Endpoints:
-- POST /admin/login - User authentication
-- GET /conversations?cursor={}&limit={} - Paginated conversations
-- GET /payments?cursor={}&limit={} - Paginated payments
-- GET /metabase/embed/{dashboard_id} - Embedded analytics
-- GET/POST/PUT/DELETE /admin/businesses - Business management
+Base URL: https://api-backoffice.mercedes-mb.org/api-docs/openapi.json
+Auth: JWT tokens via cookies (server sets cookies; client may optionally support token-based fallback)
+Endpoints of interest:
+- POST /admin/login - login
+- GET /conversations?cursor={}&limit={} - conversations
+- GET /payments?cursor={}&limit={} - payments
+- GET /metabase/embed/{dashboard_id} - embedded dashboards
+- CRUD /admin/businesses - business management
+
+See docs/API_REFERENCE.md for a short, mobile-focused summary of available endpoints and usage examples.
 ```
 
-### Android Requirements
-- **Min SDK**: 19 (Android 4.1)
-- **Target SDK**: 34 (Android 14)
-- **Permissions**: Camera, storage, notifications, biometric
-- **Features**: Offline caching, background sync, push notifications
+### Platform Requirements (guidelines)
+- Android minSdkVersion: 21 (recommended for modern third-party libraries)
+- Android target SDK: 34
+- iOS minimum: 13.0+ (adjust based on customer support strategy)
+- Permissions: camera, photos, microphone (if needed), location (if needed), notifications, biometrics
 
 ## Development Workflow
 
-### Phase 1: Project Setup
-1. Run `valdi dev_setup` to configure development environment
-2. Execute `valdi bootstrap` to create project structure
-3. Configure BUILD.bazel for Android application
-4. Set up module dependencies (valdi_core, valdi_http, valdi_persistence)
+### Phase 1 — Project & Team Setup
+1. Scaffold a canonical Flutter project and add it under `/app` or root (your preference)
+2. Choose a version strategy (FVM recommended) and add `analysis_options.yaml`, linter, CI baseline
+3. Create a lightweight module and integrate an example Auth flow to validate backend connectivity
 
-### Phase 2: Core Components
-1. **Authentication Service**: JWT token management, login/logout
-2. **API Service**: HTTP client wrapper with auth headers
-3. **Login Screen**: Email/password form with error handling
-4. **Dashboard**: Main navigation and overview cards
-5. **Data Lists**: Conversations and payments with infinite scroll
-6. **Metabase Integration**: Embedded web views for analytics
+### Phase 2 — Core Features (iterative)
+1. Authentication: secure cookie-based session handling (Dio + dio_cookie_manager + PersistCookieJar) or token-based flow if the backend supports it
+2. Dashboard: analytics overview, cards and navigation structure
+3. Conversations: cursor-based pagination, infinite scroll, and detail screens
+4. Payments: list, details, and filtering
+5. Metabase embeds: WebView or server-provided embed URLs/tokens
 
-### Phase 3: Android Features
-1. **Permissions**: Runtime permission requests (camera, storage)
-2. **Notifications**: Local push notifications for updates
-3. **Biometric Auth**: Fingerprint/face unlock as login option
-4. **File System**: Document storage and sharing
-5. **Sensors**: Device orientation and location (if needed)
+### Phase 3 — Platform Integration
+1. Camera / images: `image_picker` or `camera` for full capture features
+2. Notifications: `firebase_messaging` + `flutter_local_notifications` for local and remote notifications
+3. Biometrics: `local_auth` for device unlock/quick auth
+4. Background sync: `workmanager` or platform-specific scheduling
+5. Secure storage & cookie persistence: `flutter_secure_storage` for tokens and `cookie_jar` for cookies
 
-### Phase 4: Testing & Deployment
-1. **Unit Tests**: Component and service testing
-2. **Integration Tests**: API calls and data flow
-3. **Build Process**: Debug/release APK generation
-4. **Play Store**: Signed bundle upload and store listing
-5. **Monitoring**: Crash reporting and analytics
+### Phase 4 — Testing & Release
+1. Unit tests and widget tests
+2. Integration / E2E tests (integration_test)
+3. CI: static analysis, unit tests, builds and artifact upload
+4. Release builds: AAB for Android, IPA for iOS; manage signing keys outside of source control
 
-## Code Standards
+## Code Standards & Best Practices
 
-### Valdi Best Practices
-- Use `Component` or `StatefulComponent` for UI elements
-- Implement `onRender()` with TSX return syntax
-- Create styles at component level, not in render
-- Use TypeScript interfaces for ViewModel and State
-- Handle lifecycle with `onCreate()`, `onDestroy()`
+- Prefer small composable widgets and single-responsibility classes
+- Use null-safety and strong typing across models (Freezed for immutable models)
+- Keep business logic out of UI: use providers/services/repositories
+- Use code generation (json_serializable / freezed / retrofit) to reduce boilerplate
+- Follow release-safe feature branching and code reviews
 
-### Android Integration
-- Request permissions before accessing features
-- Handle configuration changes (rotation, etc.)
-- Implement proper back button navigation
-- Use background threads for network operations
-- Store sensitive data securely
+## API Integration
 
-### API Integration
-- Include auth tokens in all authenticated requests
-- Implement proper error handling and retry logic
-- Use cursor pagination for large datasets
-- Cache responses for offline capability
-- Validate all API responses
+- Use Dio with cookie management for session cookies (PersistCookieJar + CookieManager)
+- Centralize an ApiClient with interceptors to handle logging, retry (when appropriate), and auth failures
+- Map DTOs ↔ domain models via generated code; keep DTOs isolated in data layer
+- Support cursor pagination with a PagedResult<T> wrapper and repository-level paging helpers
 
 ## Quality Assurance
 
-### Testing Requirements
-- Unit tests for all components and services
-- Integration tests for API calls
-- UI tests for critical user flows
-- Performance tests for list rendering
-- Memory leak detection
+- Define a test pyramid (heavy unit tests, fewer integration tests, selected E2E)
+- Run `flutter analyze` and `flutter test` in CI; add format and lint checks
+- Integrate Crashlytics or Sentry for crash reporting and observability
 
-### Code Quality
-- TypeScript strict mode enabled
-- Consistent naming conventions
-- Proper error handling
-- Code documentation
-- Security best practices
+## Documentation & Files
 
-## Success Criteria
-
-1. **Functional App**: All core features working on Android devices
-2. **API Integration**: Seamless connection to Mercedes backend
-3. **User Experience**: Native Android feel with smooth performance
-4. **Production Ready**: Signed and deployed to Play Store
-5. **Maintainable Code**: Well-structured, documented, and tested
-
-## Documentation References
-
-- `SETUP.md`: Environment setup and project initialization
-- `DEVELOPMENT.md`: Component development and Valdi patterns
-- `API_INTEGRATION.md`: Backend API integration details
-- `ANDROID_SPECIFIC.md`: Android platform features and permissions
-- `DEPLOYMENT.md`: Build process and Play Store deployment
+- Keep these docs up to date: `README.md`, `SETUP.md`, `DEVELOPMENT.md`, `API_INTEGRATION.md`, `MOBILE_SPECIFIC.md`, `DEPLOYMENT.md`
+- Project scaffold and initial tasks belong in `/app` or root; document project entrypoints and developer flows
 
 ## Next Actions Priority
 
-1. **Immediate**: Run `valdi dev_setup` and `valdi bootstrap`
-2. **High**: Implement authentication service and login screen
-3. **Medium**: Create dashboard and data list components
-4. **Low**: Add Android native features and testing
+1. Scaffold a minimal Flutter app and wire an Auth flow against the local backend (priority: validate connectivity)
+2. Implement API client and basic paging for Conversations and Payments
+3. Add CI pipeline and developer conveniences (FVM, pre-commit hooks)
 
-Focus on one feature at a time, ensuring each is fully functional before moving to the next. Always test on real Android devices and handle edge cases properly.
+Deliverables for the agent
+- When asked to implement features, scaffold small, testable units with clear tests
+- Add CI workflow templates for building Android (AAB) and iOS (IPA) and running tests
+- Keep docs updated as features are added and break down work into small PR-friendly steps
+
+If you want, I can now scaffold a minimal Flutter app with Auth and an ApiClient in `/app` (or `/mobile`) and add example CI — tell me which name and structure you prefer and I will create it.
+``` 

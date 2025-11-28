@@ -37,6 +37,10 @@
         "${workspaceFolder}/.env:/app/.env:ro",
         "betancourtosmar/hetzner-mcp"
       ]
+    },
+    "tabby": {
+      "url": "http://localhost:3001/sse",
+      "type": "http"
     }
   }
 }

@@ -1,388 +1,107 @@
-# Valdi Android Development Guide
+# Development Guide — Flutter Mercedes Analytics App
 
-## Overview
+This document contains architecture guidance, conventions, recommended packages, and testing strategies for the Flutter mobile client.
 
-This guide covers developing Android apps with Valdi, focusing on the Mercedes analytics use case.
+Design goals
+- Maintainable, testable architecture
+- Clear separation of domain, data, and presentation
+- Predictable state management and dependency injection
+- Fast iteration while preserving production-grade quality
 
-## Valdi Architecture
+Recommended architecture (layered)
+1. Presentation (UI)
+   - Widgets, screens, theming, and navigation
+   - Keep widgets small and do not perform heavy business logic here
+2. Application / State
+   - State holders (e.g., Riverpod providers or Bloc/Cubit classes)
+   - Orchestrate use-cases, call services, and emit state changes
+3. Domain (business models and use cases)
+   - Immutable models (Freezed) and plain domain logic
+4. Data / Infrastructure
+   - API client(s), local persistence, caching, network interceptors
+   - Error mapping and DTOs (Data Transfer Objects)
 
-### Component-Based Development
+Suggested packages
+- State & DI
+  - riverpod (recommended) or flutter_bloc + bloc
+  - get_it (service locator) — optional (riverpod often suffices)
+- Networking
+  - dio (HTTP client) + dio interceptors
+  - retrofit (code-gen) or chopper (optional) for typed endpoints
+  - pretty_dio_logger (dev)
+- Models & code gen
+  - freezed (immutable models & unions)
+  - json_serializable / build_runner
+- Persistence & caching
+  - hive or sembast for lightweight offline cache
+  - shared_preferences for small flags
+- Auth & storage
+  - flutter_secure_storage for tokens (only for non-cookie based secrets)
+- UI & navigation
+  - go_router or auto_route for navigation (or plain Navigator 2.0)
+- Dev / quality
+  - flutter_test, mocktail or mockito for mocking
+  - lints: flutter_lints or custom analysis_options
+  - dart format enforcement (pre-commit hooks)
 
-Valdi uses TypeScript TSX for declarative UI rendering:
-
-```tsx
-import { Component } from 'valdi_core/src/Component';
-
-export class MercedesDashboard extends Component {
-  onRender() {
-    <view backgroundColor='white' padding={16}>
-      <label value='Mercedes Analytics' font='system-bold 24' />
-    </view>;
-  }
-}
+Repository layout (example)
+```
+/lib
+  /src
+    /app.dart               # App entry & providers
+    /main.dart
+    /core                  # utilities, exceptions, logging
+    /features
+      /auth
+        /data
+        /domain
+        /presentation
+      /dashboard
+      /conversations
+      /payments
+    /services             # API clients, storage adapters, analytics
+    /models               # global model types (Freezed)
+    /navigation
+    /themes
+/test
+  unit, integration and widget tests
 ```
 
-### Key Concepts
-
-#### Components
-
-- Extend `Component` or `StatefulComponent`
-- Lifecycle: `onCreate()`, `onRender()`, `onDestroy()`
-- Props via `ViewModel` interface
-- State via `State` interface
-
-#### TSX Rendering
-
-- React-like syntax
-- Direct compilation to native views
-- No JavaScript bridges or web views
-
-#### Styling
-
-```tsx
-import { Style } from 'valdi_core/src/Style';
-
-const buttonStyle = new Style<View>({
-  backgroundColor: '#007AFF',
-  padding: 12,
-  borderRadius: 8,
-  color: 'white'
-});
-
-<view style={buttonStyle}>
-  <label value='Tap me' />
-</view>
-```
-
-## Project Structure
-
-### Module Organization
-
-```bash
-apps/mercedes_app/src/valdi/mercedes_app/
-├── src/           # TypeScript source files
-│   ├── App.tsx
-│   ├── components/
-│   │   ├── Dashboard.tsx
-│   │   ├── LoginForm.tsx
-│   │   └── DataList.tsx
-│ └── services/
-│     └── ApiService.ts
-├── res/           # Images and assets
-├── strings/       # Localization files
-├── BUILD.bazel    # Build configuration
-├── module.yaml    # Module dependencies
-└── tsconfig.json  # TypeScript config
-```
-
-## Component Development
-
-### Basic Component
-
-```tsx
-import { Component } from 'valdi_core/src/Component';
-import { systemFont } from 'valdi_core/src/SystemFont';
-
-export class WelcomeScreen extends Component {
-  onRender() {
-    <layout padding={24}>
-      <label
-        value='Welcome to Mercedes Analytics'
-        font={systemFont(18)}
-        textAlignment='center'
-      />
-    </layout>;
-  }
-}
-```
-
-### Stateful Component
-
-```tsx
-import { StatefulComponent } from 'valdi_core/src/Component';
-
-interface LoginViewModel {
-  email: string;
-  password: string;
-}
-
-interface LoginState {
-  isLoading: boolean;
-  error?: string;
-}
-
-export class LoginForm extends StatefulComponent<LoginViewModel, LoginState> {
-  state = {
-    isLoading: false
-  };
-
-  private async handleLogin() {
-    this.setState({ isLoading: true, error: undefined });
-    try {
-      // Login logic here
-      await this.login(this.viewModel.email, this.viewModel.password);
-    } catch (error) {
-      this.setState({ error: error.message });
-    } finally {
-      this.setState({ isLoading: false });
-    }
-  }
-
-  onRender() {
-    <layout padding={24}>
-      <textField
-        placeholder='Email'
-        value={this.viewModel.email}
-        onChangeText={(text) => this.setViewModel({ ...this.viewModel, email: text })}
-      />
-      <textField
-        placeholder='Password'
-        secureTextEntry={true}
-        value={this.viewModel.password}
-        onChangeText={(text) => this.setViewModel({ ...this.viewModel, password: text })}
-      />
-
-      {this.state.error && (
-        <label value={this.state.error} color='red' />
-      )}
-
-      <view
-        backgroundColor={this.state.isLoading ? 'gray' : 'blue'}
-        padding={12}
-        onTap={() => this.handleLogin()}
-      >
-        <label
-          value={this.state.isLoading ? 'Logging in...' : 'Login'}
-          color='white'
-          textAlignment='center'
-        />
-      </view>
-    </layout>;
-  }
-}
-```
-
-## Layout and Views
-
-### Flexbox Layout
-
-```tsx
-<view style={{ flexDirection: 'column', padding: 16 }}>
-  <view style={{ flex: 1, backgroundColor: 'red' }} />
-  <view style={{ flex: 2, backgroundColor: 'blue' }} />
-</view>
-```
-
-### Scroll Views
-
-```tsx
-<scroll horizontal={false}>
-  <view style={{ padding: 16 }}>
-    {/* Content that may exceed screen height */}
-  </view>
-</scroll>
-```
-
-## Event Handling
-
-### Touch Events
-
-```tsx
-<view
-  onTap={() => console.log('Tapped!')}
-  onLongPress={() => console.log('Long pressed!')}
-  onDoubleTap={() => console.log('Double tapped!')}
->
-  <label value='Tap me' />
-</view>
-```
-
-### Gesture Configuration
-
-```tsx
-new Style<View>({
-  onTapDisabled: false,
-  onLongPressDisabled: false,
-  longPressDuration: 0.5,
-  touchAreaExtension: 10  // Extends touch area
-})
-```
-
-## Data Management
-
-### HTTP Client
-
-```tsx
-import { HTTPClient } from 'valdi_http/src/HTTPClient';
-
-const client = new HTTPClient('https://api.mercedes-analytics.com');
-
-// GET request
-const response = await client.get('/conversations', {
-  'Authorization': `Bearer ${token}`
-});
-
-// POST request
-const postData = new TextEncoder().encode(JSON.stringify({
-  name: 'New Conversation'
-}));
-const response = await client.post('/conversations', postData, {
-  'Content-Type': 'application/json'
-});
-```
-
-### Persistent Storage
-
-```tsx
-import { Storage } from 'valdi_persistence/src/Storage';
-
-const storage = new Storage();
-
-// Store data
-await storage.set('user_token', token);
-
-// Retrieve data
-const token = await storage.get('user_token');
-
-// Remove data
-await storage.remove('user_token');
-```
-
-## Navigation
-
-### Basic Navigation
-
-```tsx
-import { Navigation } from 'valdi_navigation/src/Navigation';
-
-const navigation = new Navigation();
-
-// Push new page
-navigation.push({
-  component: DashboardComponent,
-  props: { userId: 123 }
-});
-
-// Pop current page
-navigation.pop();
-
-// Replace current page
-navigation.replace({
-  component: LoginComponent
-});
-```
-
-## Testing
-
-### Unit Tests
-
-```tsx
-import { valdiIt, createComponent } from 'valdi_test/test/JSXTestUtils';
-import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
-
-describe('LoginForm', () => {
-  valdiIt('renders login form', async (driver) => {
-    const component = createComponent(LoginForm, {
-      email: 'test@example.com',
-      password: 'password'
-    });
-
-    const labels = elementTypeFind(
-      componentGetElements(component),
-      IRenderedElementViewClass.Label
-    );
-
-    expect(labels.length).toBeGreaterThan(0);
-  });
-});
-```
-
-### Running Tests
-
-```bash
-bazel test //apps/mercedes_app/src/valdi/mercedes_app:test
-```
-
-## Performance Optimization
-
-### View Recycling
-
-```tsx
-<collection
-  data={this.items}
-  renderItem={(item) => <ListItem data={item} />}
-  itemHeight={60}
-/>
-```
-
-### Lazy Loading
-
-```tsx
-<view lazy={true}>
-  {/* Content loaded only when visible */}
-</view>
-```
-
-### Image Optimization
-
-```tsx
-<image
-  src='https://example.com/image.jpg'
-  objectFit='cover'
-  lazy={true}
-/>
-```
-
-## Debugging
-
-### Hot Reloading
-
-```bash
-valdi hotreload --module mercedes_app
-```
-
-### VS Code Debugger
-
-- Set breakpoints in TypeScript code
-- Inspect component state and props
-- Debug network requests
-
-### Logging
-
-```tsx
-console.log('Debug message');
-console.warn('Warning message');
-console.error('Error message');
-```
-
-## Best Practices
-
-### Code Organization
-
-- Keep components small and focused
-- Use TypeScript interfaces for props and state
-- Separate business logic from UI components
-- Use consistent naming conventions
-
-### Performance
-
-- Create styles at component level, not in render
-- Use keys for dynamic lists
-- Implement proper error handling
-- Optimize image loading
-
-### Accessibility
-
-```tsx
-<label
-  value='Login Button'
-  accessibilityLabel='Tap to log in to your account'
-  accessibilityHint='Opens the main dashboard'
-/>
-```
-
-## Next Steps
-
-- [API Integration Guide](./API_INTEGRATION.md)
-- [Android Specific Features](./ANDROID_SPECIFIC.md)
-- [Deployment Guide](./DEPLOYMENT.md)
+State management choices (short)
+- Riverpod: concise, testable, composable. Works well for medium-large apps.
+- Bloc: great for large teams who prefer strict event/state flows.
+
+API client pattern
+- Keep the HTTP client in /lib/src/services/api_client.dart
+- Create typed service classes: `ConversationsApi`, `PaymentsApi`, `AuthApi` — these use Dio + interceptors
+- Map JSON ↔ DTOs ↔ Domain models (Freezed) to keep domain clean
+- Centralized error handling with typed exceptions
+
+Authentication
+- Backend uses JWT cookie auth in production. For cookies, prefer HTTP cookie handling using Dio cookie manager plugin or manually persist cookies into the app's cookie jar (if your backend sends HttpOnly cookies, a special strategy is required).
+- Alternatively, if backend offers a token-based API for mobile, store tokens securely with flutter_secure_storage and send via Authorization header.
+- Keep auth logic in `features/auth` and encapsulate session refreshing and cookie sync.
+
+Testing strategy
+- Unit tests with flutter_test and mocktail for services and providers
+- Widget tests for reusable widgets and small screen flows
+- Integration tests (flutter_driver or integration_test) for E2E flows
+- CI: run `flutter test` and `flutter analyze`
+
+Performance & best practices
+- Use const constructors where possible
+- Avoid unnecessary rebuilds — prefer const widgets and selectors (Riverpod `select`) or memoization
+- Paginate large lists with infinite scroll and careful memory handling
+
+CI & local dev
+- Use FVM for controlled Flutter versions across the team
+- Example commands:
+  - `flutter format .`
+  - `flutter analyze`
+  - `flutter test`
+
+Next steps
+- Implement an initial Flutter scaffold with basic authentication and API client.
+- Add CI pipeline to run tests and static analysis.
+
+If you want, I can scaffold a minimal runnable Flutter app inside `/lib` now with a simple login flow and a sample API call to the existing backend. Which first feature would you like scaffolding for: Authentication or Dashboard?
