@@ -1,0 +1,19 @@
+load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
+load("@valdi//bzl/valdi:valdi_exported_library.bzl", "valdi_exported_library")
+
+valdi_application(
+    name = "backoffice_android_app",
+    ios_bundle_id = "com.website.BackOffice Android",
+    ios_families = ["iphone"],
+    root_component_path = "App@backoffice_android/src/App",
+    title = "BackOffice Android",
+    version = "1.0.0",
+    deps = ["//modules/backoffice_android"],
+)
+
+valdi_exported_library(
+    name = "backoffice_android_export",
+    ios_bundle_id = "com.website.BackOffice Android.lib",
+    ios_bundle_name = "BackofficeAndroid",
+    deps = ["//modules/backoffice_android"],
+)

@@ -137,3 +137,7 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Valdi logs and cache files
+libtinfo5_6.3-2ubuntu0.1_amd64.deb
+libtinfo5_6.3-2ubuntu0.1_amd64.deb.1
