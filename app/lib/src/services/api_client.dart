@@ -8,6 +8,11 @@ import 'package:path_provider/path_provider.dart';
 class ApiClient {
   late final Dio _dio;
   PersistCookieJar? _cookieJar;
+  /// expose the underlying Dio instance for advanced usage
+  Dio get dio => _dio;
+
+  /// expose base url
+  String get baseUrl => _dio.options.baseUrl;
 
   ApiClient({String baseUrl = 'https://api-backoffice.mercedes-mb.org'}) {
     _dio = Dio(BaseOptions(baseUrl: baseUrl, connectTimeout: const Duration(seconds: 10)));

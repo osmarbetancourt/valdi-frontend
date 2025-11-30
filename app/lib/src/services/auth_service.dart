@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_client.dart';
+import '../models/current_user.dart';
 
 class AuthService extends ChangeNotifier {
   final _secure = const FlutterSecureStorage();
   final ApiClient _api;
 
   bool isSignedIn = false;
+  CurrentUser? currentUser;
 
   AuthService({ApiClient? api}) : _api = api ?? ApiClient();
 
@@ -14,14 +16,22 @@ class AuthService extends ChangeNotifier {
     // Try to load session token from secure storage.
     final token = await _secure.read(key: 'session_token');
     if (token != null && token.isNotEmpty) {
-      isSignedIn = true;
+      // If we have an access token persisted, try to pull user info
+      try {
+        final me = await _api.me();
+        currentUser = CurrentUser.fromMap(me);
+        isSignedIn = true;
+      } catch (_) {
+        isSignedIn = true; // assume token means signed in for now
+      }
       notifyListeners();
       return;
     }
 
     // No persisted token -> attempt cookie-based session check by hitting /admin/auth/me
     try {
-      await _api.me();
+      final me = await _api.me();
+      currentUser = CurrentUser.fromMap(me);
       isSignedIn = true;
     } catch (_) {
       isSignedIn = false;
@@ -47,6 +57,14 @@ class AuthService extends ChangeNotifier {
   /// Finalize sign in by persisting token and notifying listeners.
   Future<void> finishSignIn(String accessToken) async {
     await _secure.write(key: 'session_token', value: accessToken);
+    // fetch current user after persisting token
+    try {
+      final me = await _api.me();
+      currentUser = CurrentUser.fromMap(me);
+    } catch (_) {
+      currentUser = null;
+    }
+
     isSignedIn = true;
     notifyListeners();
   }
@@ -64,8 +82,14 @@ class AuthService extends ChangeNotifier {
     } catch (_) {}
 
     isSignedIn = false;
+    currentUser = null;
     notifyListeners();
   }
+
+  bool hasRole(String role) => currentUser?.hasRole(role) ?? false;
+
+  /// Convenience: whether the current user is any kind of admin.
+  bool get isAdmin => currentUser?.roles.any((r) => r.contains('admin')) ?? false;
 
   /// Expose the ApiClient so callers can reuse the same client (and cookie jar).
   ApiClient get api => _api;

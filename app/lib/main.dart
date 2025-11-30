@@ -3,6 +3,7 @@ import 'src/services/auth_service.dart';
 import 'src/services/api_client.dart';
 import 'ui/theme.dart';
 import 'src/features/auth/login_screen.dart';
+import 'src/features/admin/admin_home.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,8 +41,11 @@ class AuthGate extends StatelessWidget {
     return AnimatedBuilder(
       animation: auth,
       builder: (context, _) {
-        if (auth.isSignedIn) return HomeScreen(auth: auth);
-        return LoginScreen(auth: auth);
+        if (!auth.isSignedIn) return LoginScreen(auth: auth);
+        // If signed in and an admin, show admin home
+        if (auth.hasRole('ADMIN') || auth.isAdmin) return AdminHome(auth: auth);
+        // Otherwise show regular Home
+        return HomeScreen(auth: auth);
       },
     );
   }
@@ -71,6 +75,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showResultDialog(String title, String body) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(child: Text(body)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,8 +110,23 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text('Welcome — project scaffold', style: TextStyle(fontSize: 20)),
             const SizedBox(height: 12),
             Text('Auth ready: ${widget.auth.isSignedIn ? 'yes' : 'no'}'),
+            const SizedBox(height: 6),
+            if (widget.auth.currentUser != null) ...[
+              Text('User: ${widget.auth.currentUser?.name ?? widget.auth.currentUser?.id}'),
+              const SizedBox(height: 6),
+              Text('Roles: ${widget.auth.currentUser?.roles.join(', ') ?? '-'}'),
+            ],
             const SizedBox(height: 12),
             ElevatedButton(onPressed: _ping, child: const Text('Ping API')),
+            const SizedBox(height: 8),
+            ElevatedButton(onPressed: () async {
+              try {
+                final me = await widget.auth.api.me();
+                _showResultDialog('Current /admin/auth/me', me.toString());
+              } catch (e) {
+                _showResultDialog('Who am I?', 'Error calling /admin/auth/me:\n$e');
+              }
+            }, child: const Text('Who am I?')),
             const SizedBox(height: 12),
             Text('Status: $_status'),
           ],
